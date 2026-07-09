@@ -78,7 +78,9 @@ do while (condition)
 	
 	call gl8_background(y_back, dt_back)
 	
-	if (slowroll >= 1.0 .and. convergence(y_back(6), N)) condition = .false.
+	! Update condition
+!	if (slowroll >= 1.0 .and. convergence(y_back(6), N)) condition = .false.
+	if (slowroll >= 1.0) condition = .false.
 end do
 
 N_end = N ! E-fold number at the end of inflation
