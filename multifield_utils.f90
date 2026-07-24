@@ -594,6 +594,57 @@ pure function Gamma_phidot(phi, phidot) result(Gammaphidot)
 	
 end function Gamma_phidot
 
+! Slow-roll parameter $\epsilon$
+pure function epsilon_sr(phi, phidot, H) result(eps)
+	real, intent(in) :: phi(2), phidot(2), H
+	real             :: eps
+	
+	eps = - Hubbledot(phi, phidot) / H**2 ! $\epsilon \equiv - \dot{H} / H^{2}$
+
+end function epsilon_sr
+
+! Slow-roll parameter $\eta_{\parallel}$ (covariant acceleration projected onto the adiabatic direction, in Hubble units)
+pure function eta_sr(phi, phidot, H) result(eta)
+	real, intent(in)     :: phi(2), phidot(2), H
+	real                 :: eta
+	real, dimension(2)   :: phidotdot, Gammaphidotphidot, Dtphidot, T_adb
+	real, dimension(2,2) :: h_AB, Gammaphidot, vbein_AI
+	real                 :: phidot_mag
+	
+	h_AB              = metric(phi)                   ! $h_{AB}$
+	phidotdot         = phi_dot_dot(phi, phidot, H)   ! $\ddot{\varphi}^{A}$
+	Gammaphidot       = Gamma_phidot(phi, phidot)     ! $\Gamma^{A}_{BC} \dot{\varphi}^{C}$
+	Gammaphidotphidot = matmul(Gammaphidot, phidot)   ! $\Gamma^{A}_{BC} \dot{\varphi}^{B} \dot{\varphi}^{C}$
+	Dtphidot          = phidotdot + Gammaphidotphidot ! $\mathcal{D}_{t} \dot{\varphi}^{A}$
+	vbein_AI          = vielbein_ad_is(phi, phidot)   ! $e^{A}_{\cal X}$ (adiabatic-isocurvature vielbein)
+	T_adb             = vbein_AI(:,1)                 ! $e^{A}_{\cal R}$, adiabatic (tangent) direction
+	phidot_mag        = sqrt(sum(h_AB * outer_product(phidot, phidot))) ! $|\dot{\varphi}|$
+	
+	eta = sum(h_AB * outer_product(T_adb, Dtphidot)) / (H * phidot_mag) ! $\eta_{\parallel} \equiv - \frac{h_{AB} \, e^{A}_{\cal R} \, \mathcal{D}_{t}\dot{\varphi}^{B}}{H |\dot{\varphi}|}$
+
+end function eta_sr
+
+! Turn rate $\eta_{\perp}$ (covariant acceleration projected onto the isocurvature direction, in Hubble units)
+pure function turnrate(phi, phidot, H) result(eta)
+	real, intent(in)     :: phi(2), phidot(2), H
+	real                 :: eta
+	real, dimension(2)   :: phidotdot, Gammaphidotphidot, Dtphidot, N_iso
+	real, dimension(2,2) :: h_AB, Gammaphidot, vbein_AI
+	real                 :: phidot_mag
+	
+	h_AB              = metric(phi)                   ! $h_{AB}$
+	phidotdot         = phi_dot_dot(phi, phidot, H)   ! $\ddot{\varphi}^{A}$
+	Gammaphidot       = Gamma_phidot(phi, phidot)     ! $\Gamma^{A}_{BC} \dot{\varphi}^{C}$
+	Gammaphidotphidot = matmul(Gammaphidot, phidot)   ! $\Gamma^{A}_{BC} \dot{\varphi}^{B} \dot{\varphi}^{C}$
+	Dtphidot          = phidotdot + Gammaphidotphidot ! $\mathcal{D}_{t} \dot{\varphi}^{A}$
+	vbein_AI          = vielbein_ad_is(phi, phidot)   ! $e^{A}_{\cal X}$ (adiabatic-isocurvature vielbein)
+	N_iso             = vbein_AI(:,2)                 ! $e^{A}_{\cal S}$, isocurvature direction
+	phidot_mag        = sqrt(sum(h_AB * outer_product(phidot, phidot))) ! $|\dot{\varphi}|$
+	
+	eta = sum(h_AB * outer_product(N_iso, Dtphidot)) / (H * phidot_mag) ! $\eta_{\perp} \equiv \frac{h_{AB} \, e^{A}_{\cal S} \, \mathcal{D}_{t}\dot{\varphi}^{B}}{H |\dot{\varphi}|}$
+
+end function turnrate
+
 ! Frequency-squared matrix $\Omega_{ij}$
 pure function freq_matrix(phi, phidot, H, N, vbein_PT, k_mode) result(W2_ij)
 	real, intent(in) :: phi(2), phidot(2), H, N, vbein_PT(2,2), k_mode
