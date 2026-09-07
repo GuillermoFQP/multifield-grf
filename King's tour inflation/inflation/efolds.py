@@ -15,7 +15,7 @@ from scipy.interpolate import RegularGridInterpolator
 scale = 2.0; stretch = 2.0
 
 # read tabulated potential data
-hdu = fits.open('smpout.fits')
+hdu = fits.open('../smpout-cnst.fits')
 hdr = hdu[0].header
 
 # number of grid points
@@ -67,7 +67,7 @@ method = {'method': 'LSODA', 'atol': 1e-6, 'rtol': 1e-6}
 
 #######################################################################
 
-'''
+
 # number of grid points
 nx = 256//2; ny = 256//2; nmax = 100.0
 
@@ -88,7 +88,7 @@ for j in range(ny):
 		print(ic)
 		soln = solve_ivp(f, [0,nmax], ic, events=stop, **method)
 		N[j,i] = soln.t[-1] if soln.status > 0 else np.inf
-'''
+
 
 #######################################################################
 

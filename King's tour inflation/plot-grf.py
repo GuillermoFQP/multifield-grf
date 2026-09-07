@@ -79,37 +79,72 @@ lic /= np.sqrt(np.sum(lic**2)/np.prod(lic.shape))
 
 import matplotlib.pyplot as plt
 
-fig = plt.figure(figsize=(48/5,27/5), frameon=False)
-ax = fig.gca(); ax.patch.set_alpha(0.0)
-ax.set_aspect('equal', adjustable='box')
+# Thicker axes
+plt.rc('axes', linewidth=1)
 
+# Use LaTeX for text rendering with default LaTeX math font (Computer Modern)
+plt.rc('text', usetex=True)
+plt.rc('font', size=10, family='serif', serif=['Computer Modern'])
+
+# Scaling parameter for grid
 fscale = 1.8
+
+# Plot parameters
+aspect    = 1.25
+width     = 7.6
+ax_left   = 0.07
+ax_bottom = 0.18
+ax_width  = 0.80
+ax_height = 0.80
+
+# Axes limits
+phi1_min, phi1_max = -lx, lx
+phi2_min, phi2_max = -ly, ly
+
+fig = plt.figure(figsize=(width/2.54, width/aspect/2.54), frameon=False)
+ax = fig.add_axes([ax_left, ax_bottom, ax_width, ax_height])
+ax.set_aspect('equal', adjustable='box')
+ax.set_box_aspect(1)
 
 #plt.plot(s,v)
 
 z = np.max(np.abs(f))
-plt.imshow(f, extent=[-lx,lx,-ly,ly], origin='lower', vmin=-z, vmax=z, cmap='seismic', interpolation='none') # try RdBu_r?
+im = ax.imshow(f, extent=[-lx,lx,-ly,ly], origin='lower', vmin=-z, vmax=z, cmap="RdBu_r", interpolation='none') # try RdBu_r?
 #plt.imshow(lic, extent=[-lx,lx,-ly,ly], origin='lower', cmap='gray', interpolation='none')
-plt.colorbar()
 
-#plt.contour(X, Y, S, levels=[0.0], colors='white', linewidths=0.5, alpha=0.5)
+ax.set_xlabel(r'$\varphi^1 / M_{\mathrm{Pl}}$', fontsize=10)
+ax.set_ylabel(r'$\varphi^2 / M_{\mathrm{Pl}}$', fontsize=10)
+ax.tick_params(axis='both', which='major', labelsize=8, length=2.5, width=1)
+ticks = np.linspace(int(phi1_min), int(phi1_max), 7)
+ax.set_xticks(ticks)
+ax.set_yticks(ticks)
 
-plt.plot(x[peak[:,1]], y[peak[:,0]], '.', color='tab:red')
-plt.plot(x[trof[:,1]], y[trof[:,0]], '.', color='tab:blue')
+cbar = fig.colorbar(im, ax=ax, pad=0.02, fraction=0.08, shrink=1, extend="neither")
+cbar.set_ticks(np.linspace(-4, 4, 9))
+cbar.set_label(r'$V(\varphi) / 10^{-10} M_{\mathrm{Pl}}^{4}$', fontsize=10)
+cbar.ax.tick_params(length=2.5, labelsize=8)
+
+#plt.contour(X, Y, S, levels=[0.0], colors='gray', linewidths=0.5, alpha=0.5)
+
+#plt.plot(x[peak[:,1]], y[peak[:,0]], '.', color='tab:red')
+#plt.plot(x[trof[:,1]], y[trof[:,0]], '.', color='tab:blue')
 
 #plt.plot(nodes[0], nodes[1], 'o-')
-plt.plot(curve[0], curve[1], '-', color='tab:orange', linewidth=3)
+#plt.plot(curve[0], curve[1], '-', color='tab:gray', linewidth=1.0, alpha=0.25)
 
 #ax.add_patch(plt.Rectangle((-1.0, -1.0), 2.0, 2.0, color='black', fill=False, linewidth=2, alpha=0.2))
-ax.add_patch(plt.Circle((0, 0), 1.0 * 1.8, color='black', fill=False, linewidth=2, alpha=0.2))
+#ax.add_patch(plt.Circle((0, 0), 1.0 * fscale, color='black', fill=False, linewidth=2, alpha=0.2))
 
 # plot bounds and layout
 #plt.xlim([-lx,lx]); plt.ylim([-ly,ly])
 #plt.xlim([-1,1]); plt.ylim([-1,1])
-plt.tight_layout()
+#plt.tight_layout()
+
+plt.savefig(f'grf-const.pdf')
+plt.savefig(f'grf-cons.png', dpi=500, transparent=False)
 
 # show in interactive console
-plt.show()
+#plt.show()
 
 #######################################################################
 
@@ -129,4 +164,4 @@ plt.remove_scalar_bar()
 #plt.screenshot("high_res_plot.png", transparent_background=True, window_size=[4000,4000])
 
 # show in interactive console
-plt.show()
+#plt.show()

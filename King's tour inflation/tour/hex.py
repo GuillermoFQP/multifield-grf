@@ -180,60 +180,152 @@ class HexTourDFSNoCross:
         return None
 
 
-# --- Plotting ---
+# --- Plotting tour and spline ---
 
-def plot_hex_tour(cells: List[Hex], pos2xy: Dict[Hex, Pt], path: List[Hex],
+def plot_hex(cells: List[Hex], pos2xy: Dict[Hex, Pt], path: List[Hex],
                   hex_size: float = 1.0, annotate_every: int = 4) -> None:
-    fig, ax = plt.subplots(figsize=(5,5), frameon=False)
+    # Thicker axes
+    plt.rc('axes', linewidth=1)
 
-    # draw hex tiles (light checker-ish by (q+r) parity)
+	# Use LaTeX for text rendering with default LaTeX math font (Computer Modern)
+    plt.rc('text', usetex=True)
+    plt.rc('font', size=10, family='serif', serif=['Computer Modern'])
+    
+    aspect    = 1.1
+    width     = 7.6
+    ax_left   = 0
+    ax_bottom = 0
+    ax_width  = 1
+    ax_height = 1
+ 
+    fig = plt.figure(figsize=(width/2.54, width/aspect/2.54), frameon=False)
+    ax = fig.add_axes([ax_left, ax_bottom, ax_width, ax_height])
+
+    # --- Three-tone hex-chessboard coloring ---
+    # Proper 3-coloring of the triangular-lattice adjacency graph: any two
+    # cells sharing an edge (i.e. related by one of HEX_DIRS) always fall
+    # into different classes, since for every (dq,dr) in HEX_DIRS,
+    # (dq - dr) mod 3 != 0. Verified exhaustively for R up to 4.
+    #
+    # class = (q - r) mod 3
+    #   class 0 -> MEDIUM tone (center cell (0,0) has class 0, per Glinski's-hex-chess convention)
+    #   class 1 -> LIGHT tone
+    #   class 2 -> DARK tone
+    tone_alpha = {0: "lightgrey", 1: "white", 2: "darkgrey"}
+
+    # draw hex tiles (hexagonal chessboard: 3 tones by alpha)
     for h in cells:
         x, y = pos2xy[h]
-        parity = (h[0] + h[1]) & 1
-        face = "white" if parity == 0 else "#e8e8e8"
+        cls = (h[0] - h[1]) % 3
+        face = tone_alpha[cls] # RGBA: alpha applies to face only
         hex_patch = RegularPolygon(
             (x, y),
             numVertices=6,
             radius=hex_size,
-            orientation=np.radians(30),   # pointy-top
+#            orientation=np.radians(30), # comment for pointy-top
             facecolor=face,
-            edgecolor="black",
-            linewidth=0.8,
-        )
+            edgecolor="black", # solid edge, unaffected by face alpha
+            linewidth=1.0,
+            )
         ax.add_patch(hex_patch)
-
-    # trajectory
-    xs = [pos2xy[h][0] for h in path]
-    ys = [pos2xy[h][1] for h in path]
-    ax.plot(xs, ys, linewidth=20)
-    #ax.scatter(xs[0], ys[0], s=90, label="start")
-    #ax.scatter(xs[-1], ys[-1], s=90, marker="s", label="end")
-
-    # annotate steps
+    
+    ax.relim()            # recompute data limits from all patches
+    ax.autoscale_view()   # apply them to the axes' view window
+    
+	# annotate steps
     for i, h in enumerate(path):
         if i % annotate_every == 0 or i in (0, len(path) - 1):
             x, y = pos2xy[h]
-            ax.text(x, y, str(i), ha="center", va="center", fontsize=10)
+            ax.text(x, y, f"$({h[1]+h[0]},{h[1]})$", ha="center", va="center", fontsize=8)
+    
+    ax.set_aspect("equal", adjustable="box")
+    ax.set_axis_off()
+    #ax.set_title(f"Hex board tour (cells={len(cells)}) with no self-intersections")
+    #ax.legend()
+#    plt.tight_layout()
+    plt.savefig(f'hex.pdf')
+    plt.savefig(f'hex.png', dpi=500, transparent=False)
+    plt.show()
+    
 
-    '''
+def plot_hex_tour(cells: List[Hex], pos2xy: Dict[Hex, Pt], path: List[Hex],
+                  hex_size: float = 1.0, annotate_every: int = 4) -> None:
+    # Thicker axes
+    plt.rc('axes', linewidth=1)
+
+	# Use LaTeX for text rendering with default LaTeX math font (Computer Modern)
+    plt.rc('text', usetex=True)
+    plt.rc('font', size=10, family='serif', serif=['Computer Modern'])
+    
+    aspect    = 1.1
+    width     = 7.6
+    ax_left   = 0
+    ax_bottom = 0
+    ax_width  = 1
+    ax_height = 1
+ 
+    fig = plt.figure(figsize=(width/2.54, width/aspect/2.54), frameon=False)
+    ax = fig.add_axes([ax_left, ax_bottom, ax_width, ax_height])
+
+    # --- Three-tone hex-chessboard coloring ---
+    # Proper 3-coloring of the triangular-lattice adjacency graph: any two
+    # cells sharing an edge (i.e. related by one of HEX_DIRS) always fall
+    # into different classes, since for every (dq,dr) in HEX_DIRS,
+    # (dq - dr) mod 3 != 0. Verified exhaustively for R up to 4.
+    #
+    # class = (q - r) mod 3
+    #   class 0 -> MEDIUM tone (center cell (0,0) has class 0, per Glinski's-hex-chess convention)
+    #   class 1 -> LIGHT tone
+    #   class 2 -> DARK tone
+    tone_alpha = {0: "lightgrey", 1: "white", 2: "darkgrey"}
+
+    # draw hex tiles (hexagonal chessboard: 3 tones by alpha)
+    for h in cells:
+        x, y = pos2xy[h]
+        cls = (h[0] - h[1]) % 3
+        face = tone_alpha[cls] # RGBA: alpha applies to face only
+        hex_patch = RegularPolygon(
+            (x, y),
+            numVertices=6,
+            radius=hex_size,
+#            orientation=np.radians(30), # comment for pointy-top
+            facecolor=face,
+            edgecolor="black", # solid edge, unaffected by face alpha
+            linewidth=1.0,
+            )
+        ax.add_patch(hex_patch)
+ 
+    # trajectory
+    xs = [pos2xy[h][0] for h in path]
+    ys = [pos2xy[h][1] for h in path]
+    ax.plot(xs, ys, linewidth=20, solid_capstyle="round", solid_joinstyle="round", alpha=0.75)
+    #ax.scatter(xs[0], ys[0], s=90, label="start")
+    #ax.scatter(xs[-1], ys[-1], s=90, marker="s", label="end")
+    
     # B-spline representation
     degree = 3; pts = len(path)
     knots = np.zeros(pts+degree+1); knots[-degree:] = 1.0
     knots[degree:-degree] = np.linspace(0.0, 1.0, pts-degree+1)
     spline_x = BSpline(knots, xs, degree)
     spline_y = BSpline(knots, ys, degree)
-
+ 
     t = np.linspace(0.0, 1.0, 1024)
-    plt.plot(spline_x(t), spline_y(t), '-', color='tab:orange', linewidth=5)
-    '''
+    plt.plot(spline_x(t), spline_y(t), '-', color='tab:red', linewidth=5, solid_capstyle="round", solid_joinstyle="round", alpha=0.75)
+    
+	# annotate steps
+    for i, h in enumerate(path):
+        if i % annotate_every == 0 or i in (0, len(path) - 1):
+            x, y = pos2xy[h]
+            ax.text(x, y, rf"$\mathbf{{h}}_{{{i+1}}}$", ha="center", va="center", fontsize=10)
     
     ax.set_aspect("equal", adjustable="box")
     ax.set_axis_off()
     #ax.set_title(f"Hex board tour (cells={len(cells)}) with no self-intersections")
     #ax.legend()
-    plt.tight_layout()
+#    plt.tight_layout()
+    plt.savefig(f'tour.pdf')
+    plt.savefig(f'tour.png', dpi=500, transparent=False)
     plt.show()
-
 
 def main():
     # Hexagon radius: R=1 -> 7 cells, R=2 -> 19, R=3 -> 37, R=4 -> 61 ...
@@ -259,6 +351,7 @@ def main():
 
     #print(f"Found path length {len(path)} in {solver.calls} DFS calls (last attempt).")
     plot_hex_tour(cells, pos2xy, path, hex_size=1.0, annotate_every=1)
+	#plot_hex(cells, pos2xy, path, hex_size=1.0, annotate_every=1)
 
 
 if __name__ == "__main__":
