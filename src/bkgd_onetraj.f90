@@ -11,16 +11,16 @@ use multifield_utils
 
 implicit none
 
-real, parameter    :: N_bound = 200.0     ! Upper bound in N
-real, parameter    :: dN = 0.001          ! Data flushing period
-real, dimension(6) :: y                   ! State array
-real, dimension(2) :: phi, phidot         ! Field multiplet
-real               :: H, Hdot, N, N_flush ! Variables
-real               :: epsilon, eta_para   ! Slow-roll parameters
-real               :: eta_perp            ! Turning rate
-integer            :: i, j, k             ! Indices
-character(len=32)  :: arg                 ! Command-line argument
-character(len=100) :: filename            ! Output file name
+real, parameter     :: N_bound = 200.0     ! Upper bound in N
+real, parameter     :: dN = 0.001          ! Data flushing period
+real, dimension(6)  :: y                   ! State array
+real, dimension(2)  :: phi, phidot         ! Field multiplet
+real                :: H, Hdot, N, N_flush ! Variables
+real                :: epsilon, eta_para   ! Slow-roll parameters
+real                :: eta_perp            ! Turning rate
+integer             :: i, j, k             ! Indices
+character(len=1024) :: arg                 ! Command-line argument
+character(len=1024) :: filename            ! Output file name
 
 ! Load FITS file containing random potential
 call get_command_argument(1, potential_filename)

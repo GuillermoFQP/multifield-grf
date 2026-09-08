@@ -86,6 +86,6 @@ logical :: condition   ! Loop condition
 real    :: amp_factor  ! Variable amplitude factor for metrics and potentials
 !===========================================================================================================================
 ! Random field potential file name
-character(len=32) :: potential_filename
+character(len=1024) :: potential_filename
 
 end module multifield_globals
