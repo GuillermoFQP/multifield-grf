@@ -31,6 +31,7 @@ real                 :: H_0, N_0                                    ! Initial co
 real                 :: H, H_end, Hdot, N, slowroll, k_mode, k_phys ! Variables
 real, dimension(2,2) :: phidotphidot, vbein_PT, W2_ij               ! Variables
 real                 :: W_11, W_22, N_flush                         ! Variables
+real                 :: lambda_H, lambda_phys                       ! Logarithms of physical scales
 logical              :: trigger                                     ! Mode trigger and loop condition
 character(len=32)    :: arg                                         ! Command-line argument
 
@@ -122,7 +123,9 @@ do while (condition)
 	slowroll = - Hubbledot(phi, phidot) / H**2
 	
 	if (N >= N_flush) then
-		write (*,'(7(6e25.10e3))') N, powerspectrum(phi, phidot, H, N, vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, k_mode), N_end
+		lambda_H    = log(1.0 / H)
+		lambda_phys = N + log(1.0 / k_mode)
+		write (*,'(7(6e25.10e3))') N, powerspectrum(phi, phidot, H, N, vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, k_mode), N_end, lambda_H - lambda_phys
 		N_flush = N_flush + 0.01
 	end if
 	
