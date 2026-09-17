@@ -865,37 +865,94 @@ subroutine eigvec2x2(M, lambda, vec)
 end subroutine eigvec2x2
 
 ! Calculate eigenvalues and eigenvectors of a symmetric 2x2 matrix
+! subroutine eig2x2_sym(M, eigval, eigvec)
+! 	real, intent(in)  :: M(2,2)
+! 	real, intent(out) :: eigval(2)
+! 	real, intent(out) :: eigvec(2,2)
+! 	real              :: tr, de, disc, a, b, d
+! 	
+! 	! Matrix components
+! 	a = M(1,1)
+! 	b = M(1,2) ! = c
+! 	d = M(2,2)
+! 	
+! 	! Trace and determinant
+! 	tr = a + d
+! 	de = det(M)
+! 	
+! 	! Discriminant
+! 	disc = sqrt((a-d)**2 + 4.0*b**2)
+! 
+! 	! Stable eigenvalues
+! 	if (tr >= 0.0) then
+! 		eigval(1) = 0.5 * (tr + disc)
+! 	else
+! 		eigval(1) = 0.5 * (tr - disc)
+! 	end if
+! 
+! 	eigval(2) = de / eigval(1)
+! 
+! 	! Robust eigenvectors
+! 	call eigvec2x2(M, eigval(1), eigvec(:,1))
+! 	call eigvec2x2(M, eigval(2), eigvec(:,2))
+! 
+! end subroutine eig2x2_sym
+
+! Calculate eigenvalues and eigenvectors of a symmetric 2x2 matrix
 subroutine eig2x2_sym(M, eigval, eigvec)
-	real, intent(in)  :: M(2,2)
-	real, intent(out) :: eigval(2)
-	real, intent(out) :: eigvec(2,2)
-	real              :: tr, de, disc, a, b, d
-	
-	! Matrix components
-	a = M(1,1)
-	b = M(1,2) ! = c
-	d = M(2,2)
-	
-	! Trace and determinant
-	tr = a + d
-	de = det(M)
-	
-	! Discriminant
-	disc = sqrt((a-d)**2 + 4.0*b**2)
+    real, intent(in)  :: M(2,2)
+    real, intent(out) :: eigval(2), eigvec(2,2)
+    ! Twice the input precision/range protects products and small eigenvalues.
+    ! With the Makefile's -fdefault-real-8, gfortran uses REAL(16) here.
+    integer, parameter :: work_kind = selected_real_kind( &
+        2 * precision(1.0), 2 * range(1.0))
+    real(kind=work_kind) :: a, b, d, half_trace, half_diff, radius
+    real(kind=work_kind) :: lambda1, lambda2, determinant, v(2), vnorm
 
-	! Stable eigenvalues
-	if (tr >= 0.0) then
-		eigval(1) = 0.5 * (tr + disc)
-	else
-		eigval(1) = 0.5 * (tr - disc)
-	end if
+    ! Symmetric input is required; as before, use the upper triangle.
+    ! Preserve the old ordering: largest absolute eigenvalue first,
+    ! with the positive eigenvalue first when their magnitudes are equal.
+    a = real(M(1,1), kind=work_kind)
+    b = real(M(1,2), kind=work_kind)
+    d = real(M(2,2), kind=work_kind)
+    eigvec = 0.0
 
-	eigval(2) = de / eigval(1)
+    ! Includes the zero matrix and repeated eigenvalues. No normalization
+    ! of a zero vector, and no determinant/eigenvalue division, is needed.
+    if (b == 0.0_work_kind) then
+        if (abs(a) > abs(d) .or. (abs(a) == abs(d) .and. a >= d)) then
+            eigval = [real(a), real(d)]
+            eigvec(1,1) = 1.0
+            eigvec(2,2) = 1.0
+        else
+            eigval = [real(d), real(a)]
+            eigvec(2,1) = 1.0
+            eigvec(1,2) = -1.0
+        end if
+        return
+    end if
 
-	! Robust eigenvectors
-	call eigvec2x2(M, eigval(1), eigvec(:,1))
-	call eigvec2x2(M, eigval(2), eigvec(:,2))
+    half_trace = 0.5_work_kind * (a + d)
+    half_diff  = 0.5_work_kind * (a - d)
+    radius = sqrt(half_diff**2 + b**2)
+    lambda1 = half_trace + sign(radius, half_trace)
+    ! Wider products retain the determinant of nearly singular input.
+    ! Do not clip negative eigenvalues: the supplied matrix may be indefinite.
+    determinant = a*d - b*b
+    lambda2 = determinant / lambda1
+    eigval = [real(lambda1), real(lambda2)]
 
+    ! Choose the longer of two equivalent eigenvectors to avoid cancellation.
+    if (abs(lambda1-a) >= abs(lambda1-d)) then
+        v = [b, lambda1-a]
+    else
+        v = [lambda1-d, b]
+    end if
+    vnorm = sqrt(sum(v*v))
+    v = v / vnorm
+    eigvec(:,1) = real(v)
+    ! A perpendicular vector guarantees orthogonality even near degeneracy.
+    eigvec(:,2) = [-eigvec(2,1), eigvec(1,1)]
 end subroutine eig2x2_sym
 
 ! Calculate eigenvalues and eigenvectors of a symmetric 4x4 matrix
