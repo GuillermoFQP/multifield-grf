@@ -12,12 +12,12 @@ use multifield_utils
 implicit none
 
 real, parameter      :: N_bound = 200.0               ! Upper bound in N
-real, parameter      :: dN = 0.01                     ! Data flushing period
+real, parameter      :: dN = 0.001                    ! Data flushing period
 real, dimension(6)   :: y_back                        ! State array
 real, dimension(2)   :: phi, phidot                   ! Field multiplet
 real                 :: H, Hdot, N, slowroll, N_flush ! Variables
-real, dimension(2,2) :: M_XY                          ! Variables
-real, dimension(2,2) :: M_AB, e                       ! Mass matrix $\mathcal{M}^{2}_{AB}$
+real, dimension(2)   :: V_A, V_X                      ! Variables
+real, dimension(2,2) :: M_XY, M_AB, e                 ! Mass matrix $\mathcal{M}^{2}_{AB}$
 integer              :: i, j, k                       ! Indices
 character(len=32)    :: arg                           ! Command-line argument
 character(len=100)   :: filename                      ! Output file name
@@ -45,18 +45,23 @@ do while (condition)
 	
 	! Update slow-roll parameter
 	slowroll = - Hubbledot(phi, phidot) / H**2
+    
+    ! Update potential gradient
+    V_A = NablaV(phi)
 	
 	! Update mass matrix
-	M_AB = mass_matrix(phi, phidot, H)
+	!M_AB = mass_matrix(phi, phidot, H)
+    M_AB = HessianV(phi)
 	
 	! Update vielbein adiabatic-isocurvature
 	e = vielbein_ad_is(phi, phidot)
 	
 	! Squared mass matrix projections
 	M_XY = matmul(transpose(e) , matmul(M_AB, e))
+    V_X  = matmul(transpose(e), V_A)
 	
 	if (N >= N_flush) then
-		write (*, '(6(6e25.10e3))') N, M_XY, slowroll
+		write (*, '(8(6e25.10e3))') N, V_X, M_XY, slowroll
 		N_flush = N_flush + dN
 	end if
 	
