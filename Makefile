@@ -8,7 +8,7 @@ MODULES := $(addprefix $(SRCDIR)/,multifield_globals.f90 multifield_grf.f90 mult
 # Choose programs to build: use filenames from src/ without .f90.
 # Add or remove names here; unlisted program sources are ignored by make all.
 # You can also select programs for one invocation: make PROGRAMS="ps_mode ps_full"
-PROGRAMS := ps_mode ps_full bkgd_onetraj potential_cmap efold_cmap-test mass_projs
+PROGRAMS := ps_mode ps_full bkgd_onetraj potential_cmap efold_cmap-test mass_projs cov_mtx
 
 # Each recipe writes the same module files, so builds must run sequentially.
 .NOTPARALLEL:
