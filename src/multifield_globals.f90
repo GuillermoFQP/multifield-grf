@@ -8,7 +8,7 @@ real, parameter :: pi = 4.0 * atan(1.0)
 !===========================================================================================================================
 ! Time steps
 real, parameter :: dt_back = 1.0d2 ! Background time step
-real, parameter :: dt_pert = 1.0d1 ! Perturbation time step
+real, parameter :: dt_pert = 5.0d0 ! Perturbation time step
 !===========================================================================================================================
 ! Field-space metric
 ! "EUM" for Euclidean metric
@@ -70,14 +70,6 @@ real, parameter    :: spp_GBM = 5.00
 real               :: left_GBM(n_GBM/2), amp_GBM(n_GBM)
 real, parameter    :: std_GBM(n_GBM) = 0.06
 real, parameter    :: x_GBM(n_GBM) = [ ( -19.0 + (c_GBM-1) * (38.0 / real(n_GBM-1)), c_GBM = 1, n_GBM ) ]
-!===========================================================================================================================
-! Weierstrass metric parameters
-real, parameter :: dsp_WNM = 1.9
-real, parameter :: amp_WNM = 0.2
-real, parameter :: a_WNM = 1.3
-real, parameter :: b_WNM = 5.0
-real, parameter :: c_WNM = 0.25
-real, parameter :: d_WNM = 0.0
 !===========================================================================================================================
 ! Global variables set at runtime
 real    :: M_RPM       ! Renaux-Petel metric parameter
