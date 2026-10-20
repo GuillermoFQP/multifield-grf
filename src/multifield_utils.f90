@@ -41,6 +41,27 @@ subroutine pack_state_perturbations(y, phi, phidot, H, N, vbein_PT, Re_r1, Im_r1
 	
 end subroutine pack_state_perturbations
 
+! Get background + perturbation state array from background + perturbation functions + tensor modes
+subroutine pack_state_tns_to_scl(y, phi, phidot, H, N, &
+    vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, &
+    Re_r1_p, Im_r1_p, Re_r2_p, Im_r2_p, r_T, r_T_p)
+
+    real, intent(out) :: y(28)
+    real, intent(in) :: phi(2), phidot(2), H, N
+    real, intent(in) :: vbein_PT(2,2)
+    real, intent(in) :: Re_r1(2), Im_r1(2), Re_r2(2), Im_r2(2)
+    real, intent(in) :: Re_r1_p(2), Im_r1_p(2)
+    real, intent(in) :: Re_r2_p(2), Im_r2_p(2)
+    real, intent(in) :: r_T, r_T_p
+
+    call pack_state_perturbations(y(1:26), phi, phidot, H, N, &
+        vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, &
+        Re_r1_p, Im_r1_p, Re_r2_p, Im_r2_p)
+
+    y(27) = r_T
+    y(28) = r_T_p
+end subroutine pack_state_tns_to_scl
+
 ! Get background functions from background state array
 subroutine unpack_state_background(y, phi, phidot, H, N)
 	real, intent(in)  :: y(6)
@@ -74,6 +95,36 @@ subroutine unpack_state_perturbations(y, phi, phidot, H, N, vbein_PT, Re_r1, Im_
 	Im_r2_p  = y(25:26)                ! $\mathrm{Im} \, \mathbf{r}_{2}^{\prime}$
 	
 end subroutine unpack_state_perturbations
+
+! Get background + perturbation functions from background + perturbation state array + tensor modes
+subroutine unpack_state_tns_to_scl(y, phi, phidot, H, N, &
+    vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, &
+    Re_r1_p, Im_r1_p, Re_r2_p, Im_r2_p, r_T, r_T_p)
+
+    real, intent(in) :: y(28)
+    real, intent(out) :: phi(2), phidot(2), H, N
+    real, intent(out) :: vbein_PT(2,2)
+    real, intent(out) :: Re_r1(2), Im_r1(2), Re_r2(2), Im_r2(2)
+    real, intent(out) :: Re_r1_p(2), Im_r1_p(2)
+    real, intent(out) :: Re_r2_p(2), Im_r2_p(2)
+    real, intent(out) :: r_T, r_T_p
+
+    phi      = y(1:2)                  ! $\varphi^{A}$
+    phidot   = y(3:4)                  ! $\dot{\varphi}^{A}$
+    H        = y(5)                    ! $H(t)$
+    N        = y(6)                    ! $N(t)$
+    vbein_PT = reshape(y(7:10), [2,2]) ! $\Lambda^{A}_{i}$
+    Re_r1    = y(11:12)                ! $\mathrm{Re} \, \mathbf{r}_{1}$
+    Im_r1    = y(13:14)                ! $\mathrm{Im} \, \mathbf{r}_{1}$
+    Re_r2    = y(15:16)                ! $\mathrm{Re} \, \mathbf{r}_{2}$
+    Im_r2    = y(17:18)                ! $\mathrm{Im} \, \mathbf{r}_{2}$
+    Re_r1_p  = y(19:20)                ! $\mathrm{Re} \, \mathbf{r}_{1}^{\prime}$
+    Im_r1_p  = y(21:22)                ! $\mathrm{Im} \, \mathbf{r}_{1}^{\prime}$
+    Re_r2_p  = y(23:24)                ! $\mathrm{Re} \, \mathbf{r}_{2}^{\prime}$
+    Im_r2_p  = y(25:26)                ! $\mathrm{Im} \, \mathbf{r}_{2}^{\prime}$
+    r_T      = y(27)
+    r_T_p    = y(28)
+end subroutine unpack_state_tns_to_scl
 
 subroutine evalf_background(y, dydx)
 	real, dimension(6)  :: y, dydx
@@ -137,6 +188,81 @@ subroutine evalf_perturbations(y, dydx, k_mode)
 	dydx(25:26) = exp(-N) * Im_r2_pp
 	
 end subroutine evalf_perturbations
+
+subroutine evalf_tns_to_scl(y, dydx, k_mode)
+    real, intent(in)     :: y(28), k_mode
+    real, intent(out)    :: dydx(28)
+    real, dimension(2)   :: phi, phidot, phidotdot
+    real, dimension(2)   :: Re_r1, Im_r1, Re_r2, Im_r2
+    real, dimension(2)   :: Re_r1_p, Im_r1_p, Re_r2_p, Im_r2_p
+    real, dimension(2)   :: Re_r1_pp, Im_r1_pp, Re_r2_pp, Im_r2_pp
+    real, dimension(2,2) :: vbein_PT, vbein_PT_dot, Gammaphidot
+    real, dimension(2,2) :: W2_ij, Id, W2_eff_r1, W2_eff_r2
+    real                 :: H, N, Hdot
+    real                 :: theta1_p, theta2_p, theta1_pp, theta2_pp
+    real                 :: r1_mod2, r2_mod2, r1_mod2_p, r2_mod2_p
+    real                 :: r_T, r_T_p, r_T_pp, W2_T, W2_eff_T
+    real                 :: theta_T_p
+
+    ! Update functions
+    call unpack_state_tns_to_scl(y, phi, phidot, H, N, vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, Re_r1_p, Im_r1_p, Re_r2_p, Im_r2_p, r_T, r_T_p)
+
+    ! Calculate time-evolution functions
+    phidotdot    = phi_dot_dot(phi, phidot, H)
+    Hdot         = Hubbledot(phi, phidot)
+    W2_ij        = freq_matrix(phi, phidot, H, N, vbein_PT, k_mode)
+    Gammaphidot  = Gamma_phidot(phi, phidot)
+    Id           = reshape([1.0, 0.0, 0.0, 1.0], [2,2])
+    vbein_PT_dot = -matmul(Gammaphidot, vbein_PT)
+
+    ! Scalar amplitude norms and their conformal-time derivatives
+    r1_mod2   = dot_product(Re_r1, Re_r1) + dot_product(Im_r1, Im_r1)
+    r2_mod2   = dot_product(Re_r2, Re_r2) + dot_product(Im_r2, Im_r2)
+    r1_mod2_p = 2.0 * (dot_product(Re_r1_p, Re_r1) + dot_product(Im_r1_p, Im_r1))
+    r2_mod2_p = 2.0 * (dot_product(Re_r2_p, Re_r2) + dot_product(Im_r2_p, Im_r2))
+
+    ! Scalar phase derivatives
+    theta1_p  = 0.5 / r1_mod2
+    theta2_p  = 0.5 / r2_mod2
+    theta1_pp = -(r1_mod2_p / r1_mod2) * theta1_p
+    theta2_pp = -(r2_mod2_p / r2_mod2) * theta2_p
+
+    ! Effective scalar frequency-squared matrices
+    W2_eff_r1 = W2_ij - theta1_p**2 * Id
+    W2_eff_r2 = W2_ij - theta2_p**2 * Id
+
+    ! Scalar amplitude second derivatives with respect to conformal time
+    Re_r1_pp = -matmul(W2_eff_r1, Re_r1) + theta1_pp * Im_r1 + 2.0 * theta1_p * Im_r1_p
+    Re_r2_pp = -matmul(W2_eff_r2, Re_r2) + theta2_pp * Im_r2 + 2.0 * theta2_p * Im_r2_p
+    Im_r1_pp = -matmul(W2_eff_r1, Im_r1) - theta1_pp * Re_r1 - 2.0 * theta1_p * Re_r1_p
+    Im_r2_pp = -matmul(W2_eff_r2, Im_r2) - theta2_pp * Re_r2 - 2.0 * theta2_p * Re_r2_p
+
+    ! Tensor frequency squared and phase derivative
+    W2_T      = k_mode**2 - exp(2.0*N) * (2.0*H**2 + Hdot)
+    theta_T_p = 0.5 / r_T**2
+
+    ! Effective tensor frequency squared and amplitude second derivative
+    W2_eff_T = W2_T - theta_T_p**2
+    r_T_pp   = -W2_eff_T * r_T
+
+    ! Update arrays: derivatives with respect to cosmic time
+    dydx(1:2)   = phidot
+    dydx(3:4)   = phidotdot
+    dydx(5)     = Hdot
+    dydx(6)     = H
+    dydx(7:10)  = reshape(vbein_PT_dot, [4])
+    dydx(11:12) = exp(-N) * Re_r1_p
+    dydx(13:14) = exp(-N) * Im_r1_p
+    dydx(15:16) = exp(-N) * Re_r2_p
+    dydx(17:18) = exp(-N) * Im_r2_p
+    dydx(19:20) = exp(-N) * Re_r1_pp
+    dydx(21:22) = exp(-N) * Im_r1_pp
+    dydx(23:24) = exp(-N) * Re_r2_pp
+    dydx(25:26) = exp(-N) * Im_r2_pp
+    dydx(27)    = exp(-N) * r_T_p
+    dydx(28)    = exp(-N) * r_T_pp
+
+end subroutine evalf_tns_to_scl
 
 ! 8th order implicit Gauss-Legendre integrator
 subroutine gl8_background(y, dt)
@@ -209,6 +335,43 @@ subroutine gl8_perturbations(y, dt, k_mode)
 	y = y + matmul(g,b)*dt
 	
 end subroutine gl8_perturbations
+
+! 8th order implicit Gauss-Legendre integrator
+subroutine gl8_tns_to_scl(y, dt, k_mode)
+    integer, parameter  :: s = 4, n = 28
+    real, intent(in)    :: dt, k_mode
+    real, intent(inout) :: y(n)
+    integer             :: i, j
+    real                :: g(n,s)
+
+    ! Butcher tableau for 8th order Gauss-Legendre method
+    real, parameter :: a(s,s) = reshape((/ &
+    0.869637112843634643432659873054998518Q-1, -0.266041800849987933133851304769531093Q-1, &
+    0.126274626894047245150568805746180936Q-1, -0.355514968579568315691098184956958860Q-2, &
+    0.188118117499868071650685545087171160Q0,   0.163036288715636535656734012694500148Q0,  &
+    -0.278804286024708952241511064189974107Q-1,  0.673550059453815551539866908570375889Q-2, &
+    0.167191921974188773171133305525295945Q0,   0.353953006033743966537619131807997707Q0,  &
+    0.163036288715636535656734012694500148Q0,  -0.141906949311411429641535704761714564Q-1, &
+    0.177482572254522611843442956460569292Q0,   0.313445114741868346798411144814382203Q0,  &
+    0.352676757516271864626853155865953406Q0,   0.869637112843634643432659873054998518Q-1 /), (/s,s/))
+    real, parameter ::   b(s) = (/ &
+    0.173927422568726928686531974610999704Q0,   0.326072577431273071313468025389000296Q0,  &
+    0.326072577431273071313468025389000296Q0,   0.173927422568726928686531974610999704Q0  /)
+
+    ! Iterate trial steps
+    g = 0.0
+    do j = 1, 16
+        g = matmul(g,a)
+        do i = 1, s
+            call evalf_tns_to_scl(y + g(:,i) * dt, g(:,i), k_mode)
+        end do
+    end do
+
+    ! Update the solution
+    y = y + matmul(g,b)*dt
+    
+end subroutine gl8_tns_to_scl
+
 
 ! Determinant of a square matrix or order 2
 pure function det(matrix) result(det_matrix)
