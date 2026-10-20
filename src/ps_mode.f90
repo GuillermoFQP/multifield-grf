@@ -20,6 +20,8 @@ use multifield_utils
 
 implicit none
 
+real :: omega2_init(2), omega_init(2), P_init(2,2) ! Initial eigensystem
+
 real, parameter      :: N_trigger = 2.5                             ! Mode trigger
 real, dimension(6)   :: y_back                                      ! Background state array
 real, dimension(28)  :: y_pert                                      ! Background + perturbation state array
@@ -30,7 +32,7 @@ real, dimension(2)   :: phi_0, phidot_0                             ! Initial co
 real                 :: H_0, N_0                                    ! Initial conditions for mode-injection
 real                 :: H, H_end, Hdot, N, slowroll, k_mode, k_phys ! Variables
 real, dimension(2,2) :: phidotphidot, vbein_PT, W2_ij               ! Variables
-real                 :: W_11, W_22, N_flush                         ! Variables
+real                 :: N_flush                                     ! Variables
 real                 :: lambda_H, lambda_phys                       ! Logarithms of physical scales
 logical              :: trigger                                     ! Mode trigger and loop condition
 character(len=32)    :: arg                                         ! Command-line argument
@@ -96,14 +98,22 @@ vbein_PT = vielbein_ad_is(phi, phidot)     ! $\Lambda^{A}_{i}(t_{0})$
 ! Comoving wave vector magnitude
 k_mode = exp(N) * k_phys
 
-! Initial conditions for perturbations
-W2_ij   = freq_matrix(phi, phidot, H, N, vbein_PT, k_mode) ! $\Omega^{2}_{ij}(t_{0})$
-W_11    = sqrt(W2_ij(1,1))                                 ! $\sqrt{\Omega^{2}_{11}}$
-W_22    = sqrt(W2_ij(2,2))                                 ! $\sqrt{\Omega^{2}_{22}}$
-Re_r1   = [sqrt(2.0 * W_11)**(-1) , 0.0]
-Re_r2   = [0.0, sqrt(2.0 * W_22)**(-1)]
-Im_r1   = 0.0
-Im_r2   = 0.0
+! Initial conditions for perturbations (amplitude-phase prescription)
+W2_ij = freq_matrix(phi, phidot, H, N, vbein_PT, k_mode)
+
+! Columns of P_init are orthonormal eigenvectors of W2_ij.
+call diagonalization_LAPACK(W2_ij, omega2_init, P_init)
+if (any(omega2_init <= 0.0)) then
+    error stop 'Initial frequency matrix must be positive definite'
+end if
+omega_init = sqrt(omega2_init)
+
+Re_r1 = P_init(:,1) / sqrt(2.0 * omega_init(1))
+Re_r2 = P_init(:,2) / sqrt(2.0 * omega_init(2))
+Im_r1 = 0.0
+Im_r2 = 0.0
+
+! Amplitude derivatives vanish in the parallel-transport frame.
 Re_r1_p = 0.0
 Re_r2_p = 0.0
 Im_r1_p = 0.0

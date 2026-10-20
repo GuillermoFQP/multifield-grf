@@ -41,6 +41,8 @@ real                   :: det_Sigma                          ! Determinant of co
 logical                :: trigger                            ! Mode trigger and loop condition
 integer                :: i                                  ! Counter
 character(len=32)      :: arg                                ! Command-line argument
+real ,dimension(2)     :: omega2_init(2), omega_init(2)      ! Initial eigensystem
+real, dimension(2,2)   :: P_init                             ! Initial eigensystem
 
 ! Load FITS file containing random potential
 call get_command_argument(1, potential_filename)
@@ -102,14 +104,22 @@ vbein_PT = vielbein_ad_is(phi, phidot)     ! $\Lambda^{A}_{i}(t_{0})$
 ! Comoving wave vector magnitude
 k_mode = exp(N) * k_phys
 
-! Initial conditions for perturbations
-W2_ij   = freq_matrix(phi, phidot, H, N, vbein_PT, k_mode) ! $\Omega^{2}_{ij}(t_{0})$
-W_11    = sqrt(W2_ij(1,1))                                 ! $\sqrt{\Omega^{2}_{11}}$
-W_22    = sqrt(W2_ij(2,2))                                 ! $\sqrt{\Omega^{2}_{22}}$
-Re_r1   = [sqrt(2.0 * W_11)**(-1) , 0.0]
-Re_r2   = [0.0, sqrt(2.0 * W_22)**(-1)]
-Im_r1   = 0.0
-Im_r2   = 0.0
+! Initial conditions for perturbations (amplitude-phase prescription)
+W2_ij = freq_matrix(phi, phidot, H, N, vbein_PT, k_mode)
+
+! Columns of P_init are orthonormal eigenvectors of W2_ij.
+call diagonalization_LAPACK(W2_ij, omega2_init, P_init)
+if (any(omega2_init <= 0.0)) then
+    error stop 'Initial frequency matrix must be positive definite'
+end if
+omega_init = sqrt(omega2_init)
+
+Re_r1 = P_init(:,1) / sqrt(2.0 * omega_init(1))
+Re_r2 = P_init(:,2) / sqrt(2.0 * omega_init(2))
+Im_r1 = 0.0
+Im_r2 = 0.0
+
+! Amplitude derivatives vanish in the parallel-transport frame.
 Re_r1_p = 0.0
 Re_r2_p = 0.0
 Im_r1_p = 0.0
@@ -132,10 +142,10 @@ do while (condition)
 	Sigma = covmtx(Re_r1, Im_r1, Re_r2, Im_r2, Re_r1_p, Im_r1_p, Re_r2_p, Im_r2_p)
 	
 	! Variances
-	var(1) = k_mode * Sigma(1,1)
-	var(2) = k_mode * Sigma(2,2)
-	var(3) = Sigma(3,3) / k_mode
-	var(4) = Sigma(4,4) / k_mode
+	var(1) = 0.5 * k_mode * Sigma(1,1)
+	var(2) = 0.5 * k_mode * Sigma(2,2)
+	var(3) = 0.5 * Sigma(3,3) / k_mode
+	var(4) = 0.5 * Sigma(4,4) / k_mode
 	
 	! Projections of the covariance matrix
 	submtx(:,:,1) = reshape([k_mode * Sigma(1,1), k_mode * Sigma(2,1), k_mode * Sigma(1,2), k_mode * Sigma(2,2)], [2,2]) ! $k^{1/2} v_{\rm S}^{1}$ vs $k^{1/2} v_{\rm S}^{2}$
@@ -154,7 +164,7 @@ do while (condition)
 	
 	if (N >= N_flush) then
 		write (*,'(41(6e25.10e3))') N, var, ( eigval(:,i), eigvec(:,:,i), i = 1, 6 ), phi
-		N_flush = N_flush + 0.025
+		N_flush = N_flush + 0.01
 	end if
 	
 	call gl8_perturbations(y_pert, dt_pert, k_mode)

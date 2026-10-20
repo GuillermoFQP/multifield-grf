@@ -20,6 +20,8 @@ use multifield_utils
 
 implicit none
 
+real :: omega2_init(2), omega_init(2), P_init(2,2) ! Initial eigensystem
+
 real, parameter                :: N_start = 2.5, N_stop = 100.0                    ! Lower and upper bounds for mode injection
 real, parameter                :: N_step = 0.25                                    ! E-fold interval between consecutive mode injections
 real, dimension(6)             :: y_back                                           ! Background state array
@@ -34,7 +36,7 @@ real, dimension(2,2,ngrid_max) :: PS                                            
 real, dimension(2,2)           :: phidotphidot, vbein_PT, W2_ij                    ! Variables
 real                           :: H, H_end, Hdot, N, slowroll                      ! Variables
 real                           :: k_mode, k_phys                                   ! Variables
-real                           :: N_trigger, W_11, W_22                            ! Variables
+real                           :: N_trigger                                        ! Variables
 integer                        :: i, ngrid                                         ! Indices
 character(len=32)              :: arg                                              ! Command-line argument
 
@@ -93,7 +95,7 @@ ngrid = i ! Number of grid points
 !========================================================================================================
 k_phys = 1.0d5 * H_end ! Physical wave vector magnitude
 
-!$OMP PARALLEL DO PRIVATE(i, phi, phidot, H, N, slowroll, vbein_PT, k_mode, W2_ij, W_11, W_22, Re_r1, Re_r2, Im_r1, Im_r2, Re_r1_p, Re_r2_p, Im_r1_p, Im_r2_p, y_pert, condition) SHARED(phi_grid, phidot_grid, H_grid, N_grid, k_phys, x_grid, PS, N_end) SCHEDULE(dynamic)
+!$OMP PARALLEL DO PRIVATE(i, phi, phidot, H, N, slowroll, vbein_PT, k_mode, W2_ij, omega2_init, omega_init, P_init, Re_r1, Re_r2, Im_r1, Im_r2, Re_r1_p, Re_r2_p, Im_r1_p, Im_r2_p, y_pert, condition) SHARED(phi_grid, phidot_grid, H_grid, N_grid, k_phys, x_grid, PS, N_end) SCHEDULE(dynamic)
 do i = 1, ngrid
 	! Background initial conditions
 	phi      = phi_grid(:,i)                   ! $\phi^{A}(t_{0})$
@@ -106,18 +108,26 @@ do i = 1, ngrid
 	! Comoving wave vector magnitude
 	k_mode = exp(N) * k_phys
 	
-	! Initial conditions for perturbations
-	W2_ij    = freq_matrix(phi, phidot, H, N, vbein_PT, k_mode) ! $\Omega^{2}_{ij}(t_{0})$
-	W_11     = sqrt(W2_ij(1,1))                                 ! $\sqrt{\Omega^{2}_{11}}$
-	W_22     = sqrt(W2_ij(2,2))                                 ! $\sqrt{\Omega^{2}_{22}}$
-	Re_r1    = [sqrt(2.0 * W_11)**(-1) , 0.0]
-	Re_r2    = [0.0, sqrt(2.0 * W_22)**(-1)]
-	Im_r1    = 0.0
-	Im_r2    = 0.0
-	Re_r1_p  = 0.0
-	Re_r2_p  = 0.0
-	Im_r1_p  = 0.0
-	Im_r2_p  = 0.0
+	! Initial conditions for perturbations (amplitude-phase prescription)
+	W2_ij = freq_matrix(phi, phidot, H, N, vbein_PT, k_mode)
+
+	! Columns of P_init are orthonormal eigenvectors of W2_ij.
+	call diagonalization_LAPACK(W2_ij, omega2_init, P_init)
+	if (any(omega2_init <= 0.0)) then
+	    error stop 'Initial frequency matrix must be positive definite'
+	end if
+	omega_init = sqrt(omega2_init)
+
+	Re_r1 = P_init(:,1) / sqrt(2.0 * omega_init(1))
+	Re_r2 = P_init(:,2) / sqrt(2.0 * omega_init(2))
+	Im_r1 = 0.0
+	Im_r2 = 0.0
+
+	! Amplitude derivatives vanish in the parallel-transport frame.
+	Re_r1_p = 0.0
+	Re_r2_p = 0.0
+	Im_r1_p = 0.0
+	Im_r2_p = 0.0
 
 	! Initialize perturbation functions
 	call pack_state_perturbations(y_pert, phi, phidot, H, N, vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, Re_r1_p, Im_r1_p, Re_r2_p, Im_r2_p)
@@ -126,10 +136,10 @@ do i = 1, ngrid
 
 	do while (condition)
 		! Update functions of time
-		call unpack_state_perturbations(y_pert, phi, phidot, H, N, vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, Re_r1_p, Im_r1_p, Re_r2_p, Im_r2_p)
+		!call unpack_state_perturbations(y_pert, phi, phidot, H, N, vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, Re_r1_p, Im_r1_p, Re_r2_p, Im_r2_p)
 		
 		! Update slow-roll parameter
-		slowroll = - Hubbledot(phi, phidot) / H**2
+		!slowroll = - Hubbledot(phi, phidot) / H**2
 		
 		call gl8_perturbations(y_pert, dt_pert, k_mode)
 
