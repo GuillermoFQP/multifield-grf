@@ -50,6 +50,8 @@ subroutine load_grf(filename)
 	real                     :: nullval
 	integer                  :: status, blocksize, unit, anynull, hdutype, naxes(2)
 	integer                  :: nx_full, ny_full
+    integer                  :: scaled, scaled_status
+    real                     :: spline_shift_x, spline_shift_y
 	integer, parameter       :: downgrade_factor = 1
 	real, allocatable        :: tmp(:,:)
 	! For reading the spline curve from HDU 8 (index 9 in CFITSIO 1-based HDU count)
@@ -69,6 +71,27 @@ subroutine load_grf(filename)
 	call ftgkyd(unit, 'LY', ly, '', status)
 	call ftgkyj(unit, 'NX', nx_full, '', status)
 	call ftgkyj(unit, 'NY', ny_full, '', status)
+    
+    ! Fourier refinement factor; an absent SCALED means no refinement.
+    scaled = 1
+    scaled_status = 0
+    call ftgkyj(unit, 'SCALED', scaled, '', scaled_status)
+
+    if (scaled_status == 202) then
+        ! CFITSIO: keyword not found.
+        scaled = 1
+    else if (scaled_status /= 0) then
+        error stop 'Could not read SCALED from the FITS header.'
+    end if
+
+    if (scaled < 1) then
+        error stop 'SCALED must be a positive integer.'
+    end if
+
+    ! Express the original spline coordinates in the pixel-center frame.
+    ! Use the FITS resolution BEFORE any optional downsampling.
+    spline_shift_x = real(scaled - 1) * lx / real(nx_full)
+    spline_shift_y = real(scaled - 1) * ly / real(ny_full)
 	
 	! Set module resolution to the downsampled grid
 	nx = nx_full / downgrade_factor
@@ -131,9 +154,9 @@ subroutine load_grf(filename)
 	call ftgcvd(unit, colnum_x, 1, felem, nrows, nullval, col_x, anynull, status)
 	call ftgcvd(unit, colnum_y, 1, felem, nrows, nullval, col_y, anynull, status)
 	
-	! First row corresponds to s=0, the start of the inflationary trajectory
-	initial_phi(1) = col_x(1)
-	initial_phi(2) = col_y(1)
+    ! Start at the spline origin, expressed in the pixel-center frame.
+    initial_phi(1) = col_x(1) - spline_shift_x
+    initial_phi(2) = col_y(1) - spline_shift_y
 	
 	deallocate(col_x, col_y)
 	
@@ -150,49 +173,6 @@ subroutine load_grf(filename)
 	Vyymap = 1.0d-10 * Vyymap
 	
 end subroutine load_grf
-
-! Bicubic interpolation
-!pure function interp2(map, x, y) result(f)
-!	real, intent(in) :: map(:,:)
-!	real, intent(in) :: x, y
-!	real             :: f, tx, ty
-!	real             :: px(4), py(4), col(4)
-!	integer          :: i, j, ii, jj, ci, cj
-!	
-!	! --- locate cell, same logic as before ---
-!	tx = (x + lx - 0.5*dx) / dx
-!	ty = (y + ly - 0.5*dy) / dy
-!	
-!	i = floor(tx) + 1
-!	j = floor(ty) + 1
-!	
-!	i = max(2, min(i, nx-2))   ! keep 4x4 stencil in bounds
-!	j = max(2, min(j, ny-2))
-!	
-!	tx = tx - floor(tx)        ! fractional part in [0,1)
-!	ty = ty - floor(ty)
-!	
-!	! --- Catmull-Rom basis weights for t in [0,1) ---
-!	! p(-1), p(0), p(1), p(2)  ->  indices i-1, i, i+1, i+2
-!	px = catmull_rom_weights(tx)
-!	py = catmull_rom_weights(ty)
-!	
-!	! --- bicubic sum over 4x4 stencil ---
-!	f = 0.0
-!	do cj = 1, 4
-!		jj = j - 1 + cj
-!		col(cj) = 0.0
-!		do ci = 1, 4
-!			ii = i - 1 + ci
-!			col(cj) = col(cj) + px(ci) * map(ii, jj)
-!		end do
-!	end do
-!	
-!	do cj = 1, 4
-!		f = f + py(cj) * col(cj)
-!	end do
-!	
-!end function interp2
 
 ! Bilinear interpolation
 pure function interp2(map, x, y) result(f)
