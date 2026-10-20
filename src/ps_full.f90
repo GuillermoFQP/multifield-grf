@@ -135,17 +135,13 @@ do i = 1, ngrid
 	condition = .true. ! Initialize condition
 
 	do while (condition)
-		! Update functions of time
-		!call unpack_state_perturbations(y_pert, phi, phidot, H, N, vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, Re_r1_p, Im_r1_p, Re_r2_p, Im_r2_p)
-		
-		! Update slow-roll parameter
-		!slowroll = - Hubbledot(phi, phidot) / H**2
-		
 		call gl8_perturbations(y_pert, dt_pert, k_mode)
-
 		if (y_pert(6) >= N_end) condition = .false.
 	end do
-	
+
+    !Update functions of time
+    call unpack_state_perturbations(y_pert, phi, phidot, H, N, vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, Re_r1_p, Im_r1_p, Re_r2_p, Im_r2_p)
+    
 	x_grid(i) = log(k_mode/(exp(N)*H))
 	PS(:,:,i) = powerspectrum(phi, phidot, H, N, vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, k_mode)
 
