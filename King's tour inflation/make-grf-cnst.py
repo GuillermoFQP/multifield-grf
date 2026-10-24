@@ -22,7 +22,7 @@ tour_index = 0            if len(argv) < 3 else int(argv[2])-1
 # number of grid points
 nx = 256; ny = 256
 
-fscale = 1.8
+fscale = 2.2
 
 # uniform evaluation grid
 lx = 2.0 * fscale; dx = 2.0*lx/nx; x = np.linspace(-lx+dx/2, lx-dx/2, nx)
@@ -119,9 +119,10 @@ def constraint(p, value=None, u=[1,0], v=None, du=None, dv=None, duu=None, duv=N
 
 # compute mean field configuration resolving all constraints
 def mean_field(list):
-	H = np.array([H for H,_ in list]); v = np.array([v for _,v in list])
+	H  = np.array([H for H,_ in list])
+    v  = np.array([v for _,v in list])
 	xi = np.array([[integrate(Hi.conj()*Hj*P).real for Hj in H] for Hi in H])
-	return np.einsum('i,ijk', solve(xi, v), H)*P
+	return np.einsum('i,ijk', solve(xi, v), H) * P
 
 #######################################################################
 
@@ -137,7 +138,7 @@ nodes = (np.array(tour)-1.5) @ np.array([[1,0],[0,-1]])/2.0
 
 # king's tour trajectory on hexagonal board
 desc = f"King's tour trajectory on hexagonal board (index {tour_index})"
-with open('tour/hex.json', 'r') as catalog:
+with open("/Users/guillermo/Documents/Multifield inflation/random_potentials/King's tour inflation/tour/hex.json", 'r') as catalog:
 	tour = json.load(catalog)[tour_index]
 nodes = np.array(tour) @ np.array([[1,0],[-0.5,sqrt(0.75)]]) * fscale / 2.5
 
