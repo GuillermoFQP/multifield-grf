@@ -17,10 +17,10 @@ parser = ArgumentParser(description="Polynomial GRF valley with Fourier point co
 parser.add_argument("output", help="New output FITS filename; existing files are not overwritten")
 parser.add_argument("tour", type=int, help="One-based catalogue tour index")
 parser.add_argument("--seed", type=int, default=None)
-parser.add_argument("--points", type=int, default=80)
+parser.add_argument("--points", type=int, default=64)
 parser.add_argument("--base-grid", type=int, choices=[256,512,1024], default=256)
 parser.add_argument("--amplitude", type=float, default=1.0, help="Initial V/sigma")
-parser.add_argument("--mu", type=float, default=1.0)
+parser.add_argument("--mu", type=float, default=0.5)
 parser.add_argument("--catalog", type=Path, default=Path("/Users/guillermo/Documents/Multifield inflation/random_potentials/King's tour inflation/tour/hex.json"))
 args = parser.parse_args()
 if args.tour < 1 or args.points < 8 or args.amplitude <= 0 or args.mu <= 0:
@@ -29,16 +29,16 @@ if args.seed is not None and args.seed < 0:
     parser.error("seed must be nonnegative")
 filename = args.output
 tour_index = args.tour - 1
-if Path(filename).exists():
-    raise FileExistsError(f"Refusing to overwrite {filename}")
+#if Path(filename).exists():
+#    raise FileExistsError(f"Refusing to overwrite {filename}")
 
 # number of grid points
 nx = args.base_grid
 ny = args.base_grid
 
 # uniform evaluation grid
-lx = 2.0
-ly = 2.0
+lx = 1.0
+ly = 1.0
 dx = 2.0*lx/nx
 dy = 2.0*ly/ny
 x  = np.linspace(-lx+dx/2, lx-dx/2, nx)
@@ -75,7 +75,7 @@ def upgrade(F, os=8):
 
 # spectrum parameters
 gamma  = 1.0
-cutoff = 20.0
+cutoff = 30.0
 
 # random generator instance
 seed = args.seed if args.seed is not None else int(np.random.SeedSequence().generate_state(1)[0])
@@ -98,53 +98,62 @@ field = irfft2(np.stack([d*F for d in D]))
 
 #######################################################################
 
-# 2nd order Savitzky-Golay kernel sampling field at pixel p
-def kernel(p, n=5):
-	i = np.argmin((x-p[0])**2) - n//2
-	j = np.argmin((y-p[1])**2) - n//2
-	dx = (X[j:j+n,i:i+n]).flatten() - p[0]
-	dy = (Y[j:j+n,i:i+n]).flatten() - p[1]
-	B = np.array([np.ones(n*n),dx,dy,dx*dx,dx*dy,dy*dy])
-	C = np.linalg.inv(B @ B.T) @ B
-	return (i,j,C[0].reshape([n,n]))
-
 # Impose exact band-limited point constraints at p; subtract the matching Fourier measurements.
 def constraint(p, value=None, u=[1,0], v=None, du=None, dv=None, duu=None, duv=None, dvv=None, n=5, realization=None, append=None):
+    # list of constraints to extend
     items=[] if append is None else append
+    
     if v is None: v=[-u[1],u[0]]
-    phase=np.exp(-1j*(Kx*(p[0]-x[0])+Ky*(p[1]-y[0])))
-    ku=u[0]*Kx+u[1]*Ky; kv=v[0]*Kx+v[1]*Ky
-    ops=[phase, -1j*ku*phase, -1j*kv*phase, -ku*ku*phase, -ku*kv*phase, -kv*kv*phase]
-    scales=[sigma,tau,tau,nu,nu,nu]
-    targets=[value,du,dv,duu,duv,dvv]
+    
+    phase   = np.exp(-1j*(Kx*(p[0]-x[0])+Ky*(p[1]-y[0])))
+    ku      = u[0]*Kx+u[1]*Ky; kv=v[0]*Kx+v[1]*Ky
+    ops     = [phase, -1j*ku*phase, -1j*kv*phase, -ku*ku*phase, -ku*kv*phase, -kv*kv*phase]
+    scales  = [sigma,tau,tau,nu,nu,nu]
+    targets = [value,du,dv,duu,duv,dvv]
     for op,scale,target in zip(ops,scales,targets):
         if target is not None:
             actual=0. if realization is None else integrate(op.conj()*F).real
             items.append((op/scale,(target-actual)/scale))
     return items
 
-# compute mean field configuration resolving all constraints
+# Compute mean field configuration resolving all constraints
 def mean_field(items):
-    global covariance_condition, constraint_residual
-    H=np.array([h for h,_ in items]); values=np.array([v for _,v in items])
-    weights=2*P/(nx*ny); weights[:,0]*=.5; weights[:,-1]*=.5
-    B=(H*np.sqrt(weights)).reshape(len(items),-1)
-    Br=np.ascontiguousarray(B.real); Bi=np.ascontiguousarray(B.imag)
+    global cov_cond, cnst_res
+    H       = np.array([h for h, _ in items])
+    values  = np.array([v for _, v in items])
+    
+    weights = 2 * P / (nx * ny)
+    weights[:, 0] *= .5
+    weights[:,-1] *= .5
+    
+    B  = (H*np.sqrt(weights)).reshape(len(items),-1)
+    Br = np.ascontiguousarray(B.real); Bi=np.ascontiguousarray(B.imag)
+    
     del B
-    cov=Br@Br.T+Bi@Bi.T
+    
+    cov = Br@Br.T + Bi@Bi.T
+    
     del Br,Bi
-    eigen=np.linalg.eigvalsh(cov)
+    
+    eigen = np.linalg.eigvalsh(cov)
+    
     if eigen[0] <= 0:
         raise RuntimeError("Constraint covariance is numerically singular; reduce point count or revise geometry")
-    covariance_condition=float(eigen[-1]/eigen[0])
-    if covariance_condition > 1e12:
+    
+    cov_cond = float(eigen[-1]/eigen[0])
+    
+    if cov_cond > 1e12:
         warnings.warn("Constraint covariance is ill-conditioned; inspect residuals and convergence")
-    coeff=solve(cov,values)
-    constraint_residual=float(np.max(np.abs(cov@coeff-values)))
-    print('condition',covariance_condition,'residual',constraint_residual,flush=True)
-    if not np.isfinite(constraint_residual) or constraint_residual > 1e-7:
+    
+    coeff = solve(cov,values)
+    cnst_res = float(np.max(np.abs(cov@coeff-values)))
+    
+    print('condition', cov_cond, 'residual', cnst_res, flush=True)
+    
+    if not np.isfinite(cnst_res) or cnst_res > 1e-7:
         raise RuntimeError("Constraint solve residual exceeds tolerance")
-    return np.einsum('i,ijk->jk',coeff,H)*P
+    
+    return np.einsum('i,ijk->jk', coeff, H) * P
 
 #######################################################################
 
@@ -164,7 +173,11 @@ with args.catalog.open('r') as catalog:
 	tours = json.load(catalog)
 	if tour_index >= len(tours): raise ValueError('Tour index exceeds catalogue length')
 	tour = tours[tour_index]
-nodes = np.array(tour) @ np.array([[1,0],[-0.5,sqrt(0.75)]]) / 2.5
+
+a = 1.0
+b = 1.0
+basis = np.array([a * np.array([1.0, 0.0]), b * np.array([-0.5, np.sqrt(0.75)])])
+nodes = np.asarray(tour, dtype=float) @ basis / 6.0
 
 '''
 # Hilbert curve of order 3
@@ -225,7 +238,24 @@ Vu  = -A * power * M * chi**(power - 1) / den**2
 Vuu = (A * power * M * chi**(power - 2) * ((power - 1)*M - (power + 1)*chi**power) / den**3)
 
 # Transverse mass
-m2 = 2.0 * sqrt(25.0 / 27.0) * nu
+m2 = 1.0 * nu # 2.0 * sqrt(25.0 / 27.0) * nu
+## Smooth random transverse curvature along physical arc length.
+#ell = L * s
+#dell = L / (n - 1)
+## Chosen smoothing length, resolved by several constraint points.
+## This is a modeling choice, not the exact GRF correlation length.
+#corr_length = max(3.0 * dell, 1.0 / cutoff)
+#distance = ell[:, None] - ell[None, :]
+#Cmass = np.exp(-0.5 * (distance / corr_length)**2)
+## Correlated unit-variance Gaussian samples.
+#chol = np.linalg.cholesky(Cmass + 1e-10 * np.eye(n))
+#z = chol @ rng.normal(size=n)
+## Positive, smoothly varying curvature.
+## Pointwise ensemble mean is approximately mean_m2.
+#floor_m2 = 0.05 * nu
+#mean_m2 = 0.95 * nu
+#log_scatter = 0.25
+#m2 = floor_m2 + (mean_m2 - floor_m2) * np.exp(log_scatter * z - 0.5 * log_scatter**2)
 
 # Constraints imposed on trajectory
 p, u      = curve(s)
@@ -265,8 +295,8 @@ hdr['mu'] = mu
 hdr['nconpt'] = n
 hdr['constr'] = 'FOURIER'
 hdr['mixder'] = 'CURVATURE'
-hdr['covcond'] = covariance_condition
-hdr['conres'] = constraint_residual
+hdr['covcond'] = cov_cond
+hdr['conres'] = cnst_res
 hdr['COMMENT'] = "Constrained Gaussian random potential with spectrum"
 hdr['COMMENT'] = f"  P(k) = exp[-k^2/{2.0*cutoff**2}]/k^{2*gamma}"
 hdr['COMMENT'] = f"sampled on [{nx},{ny}] grid with |x| < {lx} and |y| < {ly}"
@@ -298,4 +328,4 @@ hdr['degree'] = degree; hdr['length'] = l[-1]
 hdr['COMMENT'] = f"Potential valley ({len(path)} constraints on {n} points)"
 
 # write data to disk
-data.writeto(filename, overwrite=False, checksum=False)
+data.writeto(filename, overwrite=True, checksum=False)
