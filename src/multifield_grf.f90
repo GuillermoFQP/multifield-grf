@@ -173,34 +173,34 @@ subroutine load_grf(filename)
 	
 end subroutine load_grf
 
-! Bilinear interpolation
+! Bilinear interpolation with periodic boundaries (Fourier-generated maps).
 pure function interp2(map, x, y) result(f)
 	real, intent(in) :: map(:,:)
 	real, intent(in) :: x, y
 	real             :: f
+	integer          :: i, j, ip, jp, mx, my
+	real             :: tx, ty
 
-	integer :: i, j
-	real    :: tx, ty
+	mx = size(map, 1)
+	my = size(map, 2)
 
 	! --- locate cell ---
-	tx = (x + lx - 0.5*dx) / dx
-	ty = (y + ly - 0.5*dy) / dy
+	tx = modulo((x + lx - 0.5*dx) / dx, real(mx))
+	ty = modulo((y + ly - 0.5*dy) / dy, real(my))
 
 	i = floor(tx) + 1
 	j = floor(ty) + 1
-
-	! keep interpolation cell inside array
-	i = max(1, min(i, nx-1))
-	j = max(1, min(j, ny-1))
+	ip = modulo(i, mx) + 1
+	jp = modulo(j, my) + 1
 
 	tx = tx - floor(tx)   ! fractional part in [0,1)
 	ty = ty - floor(ty)
 
 	! --- bilinear interpolation ---
-	f = (1.0-tx)*(1.0-ty)*map(i  ,j  ) &
-	  + tx      *(1.0-ty)*map(i+1,j  ) &
-	  + (1.0-tx)*ty      *map(i  ,j+1) &
-	  + tx      *ty      *map(i+1,j+1)
+	f = (1.0-tx)*(1.0-ty)*map(i ,j ) &
+	  + tx      *(1.0-ty)*map(ip,j ) &
+	  + (1.0-tx)*ty      *map(i ,jp) &
+	  + tx      *ty      *map(ip,jp)
 
 end function interp2
 
