@@ -58,6 +58,7 @@ subroutine load_grf(filename)
 	integer                  :: nrows, felem
 	real, allocatable        :: col_x(:), col_y(:)
 	integer                  :: colnum_x, colnum_y
+    real, parameter          :: potential_factor = 1.d-9
 	
 	status    = 0
 	blocksize = 0
@@ -163,14 +164,12 @@ subroutine load_grf(filename)
 	call ftclos(unit, status)
 	call ftfiou(unit, status)
 	
-!	Vmap   = 1.0d-11 * (Vmap + abs(minval(Vmap))) - 3.0d-11
-!	Vmap   = 1.0d-11 * (Vmap + abs(minval(Vmap))) - 3.564626826d-11
-	Vmap   = 1.0d-10 * Vmap
-	Vxmap  = 1.0d-10 * Vxmap
-	Vymap  = 1.0d-10 * Vymap
-	Vxxmap = 1.0d-10 * Vxxmap
-	Vxymap = 1.0d-10 * Vxymap
-	Vyymap = 1.0d-10 * Vyymap
+	Vmap   = potential_factor * Vmap
+	Vxmap  = potential_factor * Vxmap
+	Vymap  = potential_factor * Vymap
+	Vxxmap = potential_factor * Vxxmap
+	Vxymap = potential_factor * Vxymap
+	Vyymap = potential_factor * Vyymap
 	
 end subroutine load_grf
 
@@ -204,6 +203,41 @@ pure function interp2(map, x, y) result(f)
 	  + tx      *ty      *map(i+1,j+1)
 
 end function interp2
+
+! Bicubic interpolation with periodic boundaries (Fourier-generated maps).
+pure function interp3(map, x, y) result(f)
+	real, intent(in) :: map(:,:)
+	real, intent(in) :: x, y
+	real             :: f
+
+	integer :: i, j, a, b, ix(4), iy(4), mx, my
+	real    :: tx, ty, wx(4), wy(4)
+
+	mx = size(map, 1)
+	my = size(map, 2)
+
+	! Locate cell in the pixel-center frame and wrap to the map.
+	tx = modulo((x + lx - 0.5*dx) / dx, real(mx))
+	ty = modulo((y + ly - 0.5*dy) / dy, real(my))
+	i = floor(tx)
+	j = floor(ty)
+
+	wx = catmull_rom_weights(tx - real(i))
+	wy = catmull_rom_weights(ty - real(j))
+
+	do a = 1, 4
+		ix(a) = modulo(i + a - 2, mx) + 1
+		iy(a) = modulo(j + a - 2, my) + 1
+	end do
+
+	f = 0.0
+	do b = 1, 4
+		do a = 1, 4
+			f = f + wx(a)*wy(b)*map(ix(a),iy(b))
+		end do
+	end do
+
+end function interp3
 
 ! Catmull-Rom cardinal spline weights for the four neighbours.
 ! Returns w(1..4) for offsets -1, 0, +1, +2 given t in [0,1).
