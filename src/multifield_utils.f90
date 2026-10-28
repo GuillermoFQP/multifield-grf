@@ -542,7 +542,8 @@ pure function potential(phi) result(V)
 	real, intent(in) :: phi(2)
 	real             :: V
 	
-	V = interp2(Vmap,phi(1),phi(2))
+    !V = interp2(Vmap,phi(1),phi(2))
+    V = interp3(Vmap,phi(1),phi(2))
 	
 end function potential
 
@@ -551,8 +552,11 @@ pure function NablaV(phi) result(DV)
 	real, intent(in) :: phi(2)
 	real             :: DV(2)
 	
-	DV(1) = interp2(Vxmap,phi(1),phi(2))
-	DV(2) = interp2(Vymap,phi(1),phi(2))
+	!DV(1) = interp2(Vxmap,phi(1),phi(2))
+	!DV(2) = interp2(Vymap,phi(1),phi(2))
+    
+    DV(1) = interp3(Vxmap,phi(1),phi(2))
+    DV(2) = interp3(Vymap,phi(1),phi(2))
 	
 end function NablaV
 
@@ -561,10 +565,15 @@ pure function HessianV(phi) result(H)
 	real, intent(in) :: phi(2)
 	real             :: H(2,2)
 	
-	H(1,1) = interp2(Vxxmap,phi(1),phi(2))
-	H(1,2) = interp2(Vxymap,phi(1),phi(2))
-	H(2,1) = H(1,2)
-	H(2,2) = interp2(Vyymap,phi(1),phi(2))
+	!H(1,1) = interp2(Vxxmap,phi(1),phi(2))
+	!H(1,2) = interp2(Vxymap,phi(1),phi(2))
+	!H(2,1) = H(1,2)
+	!H(2,2) = interp2(Vyymap,phi(1),phi(2))
+    
+    H(1,1) = interp3(Vxxmap,phi(1),phi(2))
+    H(1,2) = interp3(Vxymap,phi(1),phi(2))
+    H(2,1) = H(1,2)
+    H(2,2) = interp3(Vyymap,phi(1),phi(2))
 	
 end function HessianV
 
