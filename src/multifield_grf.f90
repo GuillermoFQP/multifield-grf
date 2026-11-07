@@ -58,7 +58,7 @@ subroutine load_grf(filename)
 	integer                  :: nrows, felem
 	real, allocatable        :: col_x(:), col_y(:)
 	integer                  :: colnum_x, colnum_y
-    real, parameter          :: potential_factor = 1.d-9
+    real, parameter          :: potential_factor = 1.0d-10 ! 5.0d-9
 	
 	status    = 0
 	blocksize = 0

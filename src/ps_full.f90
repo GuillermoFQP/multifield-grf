@@ -22,7 +22,7 @@ implicit none
 
 real :: omega2_init(2), omega_init(2), P_init(2,2) ! Initial eigensystem
 
-real, parameter                :: N_start = 2.5, N_stop = 100.0                    ! Lower and upper bounds for mode injection
+real, parameter                :: N_start = 2.5, N_stop = 200.0                    ! Lower and upper bounds for mode injection
 real, parameter                :: N_step = 0.25                                    ! E-fold interval between consecutive mode injections
 real, dimension(6)             :: y_back                                           ! Background state array
 real, dimension(28)            :: y_pert                                           ! Background + perturbation state array
