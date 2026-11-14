@@ -462,8 +462,12 @@ pure function potential(phi) result(V)
 	real, intent(in) :: phi(2)
 	real             :: V
 	
-    !V = interp2(Vmap,phi(1),phi(2))
-    V = interp3(Vmap,phi(1),phi(2))
+    select case (potential_interpolation)
+        case ("bilinear")
+            V = interp2(Vmap,phi(1),phi(2))
+        case ("bicubic")
+            V = interp3(Vmap,phi(1),phi(2))
+    end select
 	
 end function potential
 
@@ -472,11 +476,14 @@ pure function NablaV(phi) result(DV)
 	real, intent(in) :: phi(2)
 	real             :: DV(2)
 	
-	!DV(1) = interp2(Vxmap,phi(1),phi(2))
-	!DV(2) = interp2(Vymap,phi(1),phi(2))
-    
-    DV(1) = interp3(Vxmap,phi(1),phi(2))
-    DV(2) = interp3(Vymap,phi(1),phi(2))
+    select case (potential_interpolation)
+        case ("bilinear")
+            DV(1) = interp2(Vxmap,phi(1),phi(2))
+            DV(2) = interp2(Vymap,phi(1),phi(2))
+        case ("bicubic")
+            DV(1) = interp3(Vxmap,phi(1),phi(2))
+            DV(2) = interp3(Vymap,phi(1),phi(2))
+    end select
 	
 end function NablaV
 
@@ -485,16 +492,19 @@ pure function HessianV(phi) result(H)
 	real, intent(in) :: phi(2)
 	real             :: H(2,2)
 	
-	!H(1,1) = interp2(Vxxmap,phi(1),phi(2))
-	!H(1,2) = interp2(Vxymap,phi(1),phi(2))
-	!H(2,1) = H(1,2)
-	!H(2,2) = interp2(Vyymap,phi(1),phi(2))
-    
-    H(1,1) = interp3(Vxxmap,phi(1),phi(2))
-    H(1,2) = interp3(Vxymap,phi(1),phi(2))
-    H(2,1) = H(1,2)
-    H(2,2) = interp3(Vyymap,phi(1),phi(2))
-	
+    select case (potential_interpolation)
+        case ("bilinear")
+            H(1,1) = interp2(Vxxmap,phi(1),phi(2))
+            H(1,2) = interp2(Vxymap,phi(1),phi(2))
+            H(2,1) = H(1,2)
+            H(2,2) = interp2(Vyymap,phi(1),phi(2))
+        case ("bicubic")
+            H(1,1) = interp3(Vxxmap,phi(1),phi(2))
+            H(1,2) = interp3(Vxymap,phi(1),phi(2))
+            H(2,1) = H(1,2)
+            H(2,2) = interp3(Vyymap,phi(1),phi(2))
+    end select
+
 end function HessianV
 
 ! Second covariant derivative of the potential in the field space $\mathcal{D}_{B} \mathcal{D}_{A} V$
