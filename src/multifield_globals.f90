@@ -11,7 +11,9 @@ real, parameter :: dt_back = 1.0d2 / 10.0 ! / 9.0 ! Background time step
 real, parameter :: dt_pert = 1.0d1 / 10.0 ! / 9.0 ! Perturbation time step
 !===========================================================================================================================
 ! Interpolation kind for potential and its derivatives
-character(len=*), parameter :: potential_interpolation = "bilinear"
+! "BLI" for bilinear interpolation
+! "BCI" for bicubic interpolation
+character(len=*), parameter :: potential_interpolation = "BLI"
 !===========================================================================================================================
 ! Field-space metric
 ! "EUM" for Euclidean metric
