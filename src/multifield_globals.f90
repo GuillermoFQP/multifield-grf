@@ -7,8 +7,8 @@ implicit none
 real, parameter :: pi = 4.0 * atan(1.0)
 !===========================================================================================================================
 ! Time steps
-real, parameter :: dt_back = 1.0d2 / 10.0 ! / 9.0 ! Background time step
-real, parameter :: dt_pert = 1.0d1 / 10.0 ! / 9.0 ! Perturbation time step
+real, parameter :: dt_back = 1.0d2 / sqrt(8.0) ! Background time step
+real, parameter :: dt_pert = 1.0d1 / sqrt(8.0) ! Perturbation time step
 !===========================================================================================================================
 ! Interpolation kind for potential and its derivatives
 ! "BLI" for bilinear interpolation
