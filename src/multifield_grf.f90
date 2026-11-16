@@ -188,10 +188,10 @@ pure function interp2(map, x, y) result(f)
 	tx = modulo((x + lx - 0.5*dx) / dx, real(mx))
 	ty = modulo((y + ly - 0.5*dy) / dy, real(my))
 
-	i = floor(tx) + 1
-	j = floor(ty) + 1
-	ip = modulo(i, mx) + 1
-	jp = modulo(j, my) + 1
+    i = modulo(floor(tx), mx) + 1
+    j = modulo(floor(ty), my) + 1
+    ip = modulo(i, mx) + 1
+    jp = modulo(j, my) + 1
 
 	tx = tx - floor(tx)   ! fractional part in [0,1)
 	ty = ty - floor(ty)
