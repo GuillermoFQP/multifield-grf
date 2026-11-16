@@ -12,7 +12,7 @@ use multifield_utils
 implicit none
 
 real, parameter      :: N_bound = 200.0               ! Upper bound in N
-real, parameter      :: dN = 0.001                    ! Data flushing period
+real, parameter      :: dN = 0.05                     ! Data flushing period
 real, dimension(6)   :: y_back                        ! State array
 real, dimension(2)   :: phi, phidot                   ! Field multiplet
 real                 :: H, Hdot, N, slowroll, N_flush ! Variables
