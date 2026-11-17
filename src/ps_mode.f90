@@ -23,6 +23,7 @@ implicit none
 real :: omega2_init(2), omega_init(2), P_init(2,2) ! Initial eigensystem
 
 real, parameter      :: N_trigger = 2.5                             ! Mode trigger
+real, parameter      :: dN = 0.05                                   ! Data flushing period
 real, dimension(6)   :: y_back                                      ! Background state array
 real, dimension(28)  :: y_pert                                      ! Background + perturbation state array
 real, dimension(2)   :: phi, phidot                                 ! Field multiplet and its time derivative
@@ -136,7 +137,7 @@ do while (condition)
 		lambda_H    = log(1.0 / H)
 		lambda_phys = N + log(1.0 / k_mode)
 		write (*,'(7(6e25.10e3))') N, powerspectrum(phi, phidot, H, N, vbein_PT, Re_r1, Im_r1, Re_r2, Im_r2, k_mode), N_end, lambda_H - lambda_phys
-		N_flush = N_flush + 0.01
+		N_flush = N_flush + dN
 	end if
 	
 	call gl8_perturbations(y_pert, dt_pert, k_mode)
