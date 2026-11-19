@@ -15,7 +15,7 @@ use multifield_utils
 
 implicit none
 
-real, parameter    :: N_start = 2.5, N_stop = 100.0
+real, parameter    :: N_start = 2.5, N_stop = 200.0
 real, parameter    :: N_step = 0.25
 integer, parameter :: ngrid_max = int((N_stop - N_start) / N_step) + 1
 real               :: y_back(6), y_pert(8)
